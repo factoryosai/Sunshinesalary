@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans Gujarati", "Noto Sans Devanagari", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --color-ledger-bg: #F3EBD8;
+  --color-ledger-ink: #2B2620;
+  --color-upad-maroon: #8B2E2E;
+  --color-upad-maroon-hover: #9C3B3B;
+  --color-pagar-green: #2F5D42;
+  --color-pagar-gold: #A9772F;
+}
+
+@layer utilities {
+  .ledger-paper {
+    background-color: #F3EBD8;
+    background-image: linear-gradient(rgba(171, 151, 116, 0.15) 1px, transparent 1px);
+    background-size: 100% 28px;
+  }
+}
+
+/* Custom fonts styling per locale rules */
+.font-guj-title {
+  font-family: "Tiro Gujarati", serif;
+}
+
+.font-guj-body {
+  font-family: "Noto Sans Gujarati", sans-serif;
+}
+
+.font-hindi-title {
+  font-family: "Hind", "Baloo 2", sans-serif;
+}
+
+.font-hindi-body {
+  font-family: "Noto Sans Devanagari", sans-serif;
+}
+
+/* Notebook paper scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F3EBD8;
+}
+::-webkit-scrollbar-thumb {
+  background: #A9772F;
+  border-radius: 3px;
+}

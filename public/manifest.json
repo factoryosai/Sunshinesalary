@@ -1,0 +1,22 @@
+{
+  "short_name": "Pagar Book",
+  "name": "Sunshine Pagar Book (સનશાઇન પગાર બુક)",
+  "description": "Traditional Indian khata style salary and advance ledger tracking book",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/192/ledger.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://img.icons8.com/color/512/ledger.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#F3EBD8",
+  "theme_color": "#8B2E2E",
+  "display": "standalone",
+  "orientation": "portrait"
+}

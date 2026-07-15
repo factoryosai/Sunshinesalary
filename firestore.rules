@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened helper primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      // Allow fallback if user is in local preview, but verify properly
+      return request.auth.token.email_verified == true || request.auth.token.email.endsWith('.internal');
+    }
+
+    function getProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && getProfile().role == 'admin';
+    }
+
+    function isEmployeeOf(employeeId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && getProfile().role == 'employee' && getProfile().employeeId == employeeId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Collection: Employees
+    match /employees/{employeeId} {
+      allow read: if isAdmin() || isEmployeeOf(employeeId);
+      allow write: if isAdmin();
+
+      // Subcollection: Monthly Records
+      match /monthlyRecords/{recordId} {
+        allow read: if isAdmin() || isEmployeeOf(employeeId);
+        allow write: if isAdmin();
+      }
+
+      // Subcollection: Withdrawals (Upad)
+      match /withdrawals/{withdrawalId} {
+        allow read: if isAdmin() || isEmployeeOf(employeeId);
+        allow write: if isAdmin();
+      }
+    }
+
+    // Collection: Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.employeeId == getProfile().employeeId);
+      allow write: if isAdmin();
+    }
+
+    // Collection: Profiles
+    match /profiles/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin() || (isSignedIn() && !exists(/databases/$(database)/documents/profiles/$(uid)));
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Sunshine Pagar Book",
+  "description": "Progressive Web App traditional Indian khata style salary and advance tracking ledger with separate Admin (Gujarati UI) and Employee (Hindi UI) dashboards, complete with a real-time Gemini command bar and WhatsApp image report sharing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
