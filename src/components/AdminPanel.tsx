@@ -1494,10 +1494,19 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
         })
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "કર્મચારી ઉમેરવામાં નિષ્ફળતા મળી.");
+        let errMsg = "કર્મચારી ઉમેરવામાં નિષ્ફળતા મળી.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
+
+      const data = await response.json();
 
       setFormSuccess(`કર્મચારી ${newEmpName} સફળતાપૂર્વક ઉમેરાયો છે!`);
       // Reset
@@ -1528,10 +1537,19 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
         })
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "પાસવર્ડ બદલવામાં નિષ્ફળતા.");
+        let errMsg = "પાસવર્ડ બદલવામાં નિષ્ફળતા.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
+
+      const data = await response.json();
 
       setFormSuccess(`કર્મચારી ${resetEmpLoginId} નો નવો પાસવર્ડ સેટ કરવામાં આવ્યો છે!`);
       setResetEmpLoginId("");
@@ -1555,8 +1573,15 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
           setSelectedEmployeeId("");
         }
       } else {
-        const data = await response.json();
-        throw new Error(data.error || "કર્મચારી ડિલીટ કરવામાં નિષ્ફળતા મળી.");
+        let errMsg = "કર્મચારી ડિલીટ કરવામાં નિષ્ફળતા મળી.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
     } catch (err: any) {
       setFormError(err.message);
@@ -1580,10 +1605,19 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
         })
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "કર્મચારી સુધારવામાં નિષ્ફળતા મળી.");
+        let errMsg = "કર્મચારી સુધારવામાં નિષ્ફળતા મળી.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
+
+      const data = await response.json();
 
       setFormSuccess(`કર્મચારી ${name} ની માહિતી સફળતાપૂર્વક અપડેટ થઈ છે!`);
       
@@ -1621,10 +1655,19 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
         })
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "પાસવર્ડ બદલવામાં નિષ્ફળતા.");
+        let errMsg = "પાસવર્ડ બદલવામાં નિષ્ફળતા.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
+
+      const data = await response.json();
 
       setFormSuccess(`કર્મચારી ${empLoginId} નો નવો પાસવર્ડ સેટ કરવામાં આવ્યો છે!`);
       return true;
@@ -1674,10 +1717,19 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
         })
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "કર્મચારી સુધારવામાં નિષ્ફળતા મળી.");
+        let errMsg = "કર્મચારી સુધારવામાં નિષ્ફળતા મળી.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
+
+      const data = await response.json();
 
       setFormSuccess(`કર્મચારી ${editEmpName} ની માહિતી સફળતાપૂર્વક અપડેટ થઈ છે!`);
       
