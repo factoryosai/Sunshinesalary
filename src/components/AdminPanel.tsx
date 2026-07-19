@@ -54,7 +54,7 @@ import WhatsAppShare from "./WhatsAppShare";
 
 interface EmployeeManagementCardProps {
   emp: Employee;
-  onUpdate: (empId: string, name: string, mobile: string, monthlySalary: number) => Promise<boolean>;
+  onUpdate: (empId: string, name: string, mobile: string, monthlySalary: number) => Promise<{ success: boolean; error?: string }>;
   onResetPassword: (empLoginId: string, newPass: string) => Promise<boolean>;
   onDelete: (empId: string) => Promise<void>;
   selectedMonth: string;
@@ -230,14 +230,14 @@ function EmployeeManagementCard({
     setIsSubmitting(true);
     setLocalError("");
     setLocalSuccess("");
-    const success = await onUpdate(emp.id, editName, editMobile, editSalary);
+    const res = await onUpdate(emp.id, editName, editMobile, editSalary);
     setIsSubmitting(false);
-    if (success) {
+    if (res.success) {
       setIsEditing(false);
       setLocalSuccess("કર્મચારીની માહિતી સફળતાપૂર્વક સુધારાઈ!");
       setTimeout(() => setLocalSuccess(""), 4000);
     } else {
-      setLocalError("કર્મચારીની માહિતી સુધારવામાં ભૂલ આવી.");
+      setLocalError(res.error || "કર્મચારીની માહિતી સુધારવામાં ભૂલ આવી.");
     }
   };
 
@@ -1564,7 +1564,7 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
   };
 
   // Direct Update Employee helper for inline cards
-  const updateEmployeeDirect = async (empId: string, name: string, mobile: string, monthlySalary: number) => {
+  const updateEmployeeDirect = async (empId: string, name: string, mobile: string, monthlySalary: number): Promise<{ success: boolean; error?: string }> => {
     setFormSuccess("");
     setFormError("");
     try {
@@ -1600,10 +1600,10 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
       } catch (notifErr) {
         console.warn("Failed to send profile edit notification:", notifErr);
       }
-      return true;
+      return { success: true };
     } catch (err: any) {
       setFormError(err.message);
-      return false;
+      return { success: false, error: err.message };
     }
   };
 

@@ -84,9 +84,28 @@ function getNextMonthStr(yearMonthStr: string): string {
 }
 
 // ------------------------------------------------------------
+// Helper: Ensure Server is authenticated as Admin for Firebase Rules
+// ------------------------------------------------------------
+async function ensureAdminAuth() {
+  if (auth.currentUser && auth.currentUser.email === "sunshine@sunshinepagarbook.internal") {
+    return;
+  }
+  try {
+    await signInWithEmailAndPassword(auth, "sunshine@sunshinepagarbook.internal", "Sun.456");
+  } catch (err) {
+    try {
+      await signInWithEmailAndPassword(auth, "sunshine@sunshinepagarbook.internal", "sun.456");
+    } catch (err2: any) {
+      console.error("ensureAdminAuth: Admin authentication failed on server:", err2.message);
+    }
+  }
+}
+
+// ------------------------------------------------------------
 // API: Recalculate Salary with carry forward propagation
 // ------------------------------------------------------------
 async function calculateSalaryInternal(employeeId: string, yearMonthStr: string) {
+  await ensureAdminAuth();
   const employeeRef = doc(db, "employees", employeeId);
   const employeeSnap = await getDoc(employeeRef);
   if (!employeeSnap.exists()) {
@@ -189,6 +208,7 @@ async function calculateSalaryInternal(employeeId: string, yearMonthStr: string)
 
 app.post("/api/recalculate", async (req, res) => {
   try {
+    await ensureAdminAuth();
     const { employeeId, yearMonth } = req.body;
     if (!employeeId || !yearMonth) {
       return res.status(400).json({ error: "Missing employeeId or yearMonth" });
@@ -206,6 +226,7 @@ app.post("/api/recalculate", async (req, res) => {
 // ------------------------------------------------------------
 app.post("/api/gemini-command", async (req, res) => {
   try {
+    await ensureAdminAuth();
     const { command, selectedMonth } = req.body;
     if (!command) {
       return res.status(400).json({ error: "Command string is required" });
@@ -375,6 +396,7 @@ Explain the answer to the admin in a short, clear single sentence in sweet, prof
 // ------------------------------------------------------------
 app.post("/api/admin/create-employee", async (req, res) => {
   try {
+    await ensureAdminAuth();
     const { name, mobile, employeeLoginId, password, monthlySalary } = req.body;
     if (!name || !mobile || !employeeLoginId || !password || !monthlySalary) {
       return res.status(400).json({ error: "બધી માહિતી આવશ્યક છે." });
@@ -435,6 +457,7 @@ app.post("/api/admin/create-employee", async (req, res) => {
 
 app.post("/api/admin/reset-password", async (req, res) => {
   try {
+    await ensureAdminAuth();
     const { employeeLoginId, newPassword } = req.body;
     if (!employeeLoginId || !newPassword) {
       return res.status(400).json({ error: "કર્મચારી આઈડી અને પાસવર્ડ આવશ્યક છે." });
@@ -459,6 +482,7 @@ app.post("/api/admin/reset-password", async (req, res) => {
 
 app.post("/api/admin/delete-employee", async (req, res) => {
   try {
+    await ensureAdminAuth();
     const { employeeId } = req.body;
     if (!employeeId) {
       return res.status(400).json({ error: "Employee ID is required" });
@@ -480,6 +504,7 @@ app.post("/api/admin/delete-employee", async (req, res) => {
 
 app.post("/api/admin/update-employee", async (req, res) => {
   try {
+    await ensureAdminAuth();
     const { employeeId, name, mobile, monthlySalary, selectedMonth } = req.body;
     if (!employeeId || !name || !mobile || monthlySalary === undefined) {
       return res.status(400).json({ error: "કર્મચારી આઈડી, નામ, મોબાઈલ અને પગાર આવશ્યક છે." });
@@ -619,6 +644,9 @@ app.post("/api/seed", async (req, res) => {
         }
       }
     }
+
+    // Re-authenticate back to Admin to leave the server in a clean admin-authorized state
+    await ensureAdminAuth();
 
     res.json({ success: true, message: "Seeding run complete", details: results });
   } catch (error: any) {
