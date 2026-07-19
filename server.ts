@@ -409,6 +409,10 @@ app.post("/api/admin/create-employee", async (req, res) => {
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       uid = userCred.user.uid;
+      
+      // CRITICAL: createUserWithEmailAndPassword logs in the newly created user on the shared server Auth instance.
+      // We must immediately re-authenticate back to Admin to obtain the permissions needed for Firestore writes.
+      await ensureAdminAuth();
     } catch (authErr: any) {
       if (authErr.code === "auth/email-already-in-use") {
         return res.status(400).json({ error: "આ કર્મચારી આઈડી પહેલેથી રજીસ્ટર થયેલ છે." });
@@ -560,6 +564,8 @@ app.post("/api/seed", async (req, res) => {
         const userCred = await createUserWithEmailAndPassword(auth, item.email, item.pass);
         uid = userCred.user.uid;
         results.push({ id: item.id, status: "created", email: item.email });
+        // Immediately sign back as admin so subsequent loop iterations and writes have proper permissions
+        await ensureAdminAuth();
       } catch (err: any) {
         if (err.code === "auth/email-already-in-use" || err.message?.includes("already")) {
           // If already exists, sign in to retrieve uid
@@ -605,6 +611,9 @@ app.post("/api/seed", async (req, res) => {
       }
 
       if (uid) {
+        // Re-authenticate as Admin to ensure we have write permissions
+        await ensureAdminAuth();
+
         // 2. Set Profiles/uid document
         await setDoc(doc(db, "profiles", uid), {
           role: item.role,
