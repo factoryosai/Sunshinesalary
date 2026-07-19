@@ -233,7 +233,7 @@ app.post("/api/gemini-command", async (req, res) => {
     const systemPrompt = `You are a strict data parser and classifier for a traditional Indian "Sunshine Pagar Book" (ledger salary/advance app).
 The current year is ${currentYear} and current month is ${currentMonth}.
 You must analyze the user's natural language command (which may be in mixed Gujarati, Hindi, or English) and classify it into either a:
-- "query" (reading summary or asking for details)
+- "query" (reading summary, asking for details, or asking for hypothetical calculation projections)
 - "write" (inserting a new advance upad or overtime)
 - "clarify" (if you cannot confidently map to any known employee or action)
 
@@ -244,7 +244,7 @@ You MUST output STRICT JSON in this exact schema format:
 {
   "action": "query" | "write" | "clarify",
   "employee_login_id": "string or null (matching the exact employeeLoginId from the list above, NOT the employee name)",
-  "operation": "get_total_withdrawal" | "add_withdrawal" | "add_overtime" | "get_salary" | null,
+  "operation": "get_total_withdrawal" | "add_withdrawal" | "add_overtime" | "get_salary" | "calculate_hypothetical" | null,
   "amount": number or null,
   "note": "string or null (a short clear reason/remark in Gujarati/Hindi/English)",
   "month": number,
@@ -256,6 +256,7 @@ Guidelines:
 - Match employee name phonetically or partially (e.g. "Kaushik ko upad", "કૌશિક ને 5000 આપ્યા" -> matches Kaushik).
 - "upad" or "ઉપાડ" or "advance" or "kharcha" -> "add_withdrawal" or "get_total_withdrawal".
 - "salary" or "pagar" or "પગાર" -> "get_salary".
+- If the user asks a hypothetical calculation like "25 divas no pagar upad bad karta ketlo thyo", set "operation" to "calculate_hypothetical".
 - Always output exactly the JSON schema. Do not include markdown wraps like \`\`\`json.`;
 
     const response = await ai.models.generateContent({
@@ -307,6 +308,20 @@ Guidelines:
         carryForwardIn: 0
       };
 
+      // Query detailed withdrawals for the employee for this month to add details
+      const withdrawalsCol = collection(db, "employees", empId, "withdrawals");
+      const withdrawalsQuery = query(withdrawalsCol, where("monthlyRecordId", "==", recordKey));
+      const withdrawalsSnap = await getDocs(withdrawalsQuery);
+      const withdrawalsList: any[] = [];
+      withdrawalsSnap.forEach((wDoc) => {
+        const wData = wDoc.data();
+        withdrawalsList.push({
+          amount: wData.amount,
+          note: wData.note || "No note",
+          date: wData.date instanceof Timestamp ? wData.date.toDate().toLocaleDateString("en-IN") : "Unknown"
+        });
+      });
+
       // Recalculate just in case
       let finalSalaryValue = recData.finalSalary;
       let totalWithdrawalsValue = recData.totalWithdrawals;
@@ -314,14 +329,24 @@ Guidelines:
       // Ask Gemini to formulate a short, polite, human answer in beautiful Gujarati
       const answerPrompt = `Based on this real business ledger data for employee ${empData.name || empId}:
 - Base Monthly Salary: ₹${empData.monthlySalary || 0}
-- Selected Month: ${parsedResult.month}/${parsedResult.year}
+- Selected Month: ${parsedResult.month || currentMonth}/${parsedResult.year || currentYear}
 - Duty Days worked: ${recData.dutyDays} days
 - Overtime Amount: ₹${recData.overtimeAmount || 0}
 - Carry Forward In from prior month: ₹${recData.carryForwardIn || 0}
 - Total Withdrawals (Upad) taken this month: ₹${totalWithdrawalsValue}
 - Net Final Salary for this month: ₹${finalSalaryValue}
 
-Explain the answer to the admin in a short, clear single sentence in sweet, professional Business Gujarati. Mention exact rupee amounts. Do not include markdown.`;
+Here are the individual withdrawals logged for this month:
+${JSON.stringify(withdrawalsList, null, 2)}
+
+The user's original question is: "${command}"
+
+If the user's question asks for a hypothetical scenario (such as: what is the salary for 25 days after deducting withdrawals, or what would be the salary for X days), calculate the exact result using the formula:
+Daily salary = Base Monthly Salary / 26
+Earned salary for X days = Daily salary * X days
+Final Net Salary = Earned salary for X days + Overtime - Total Withdrawals - Carry Forward In
+
+Explain the answer to the admin in a short, clear single sentence in sweet, professional Business Gujarati. Mention exact rupee amounts and how they are calculated. Do not include markdown.`;
 
       const nlResponse = await ai.models.generateContent({
         model: "gemini-3.5-flash",
@@ -491,7 +516,7 @@ app.post("/api/admin/update-employee", async (req, res) => {
 app.post("/api/seed", async (req, res) => {
   try {
     const seedData = [
-      { id: "Admin", name: "Admin", email: "admin@sunshinepagarbook.internal", pass: "Admin.456", role: "admin", salary: 0, mobile: "9999999999" },
+      { id: "Sunshine", name: "Sunshine", email: "sunshine@sunshinepagarbook.internal", pass: "Sun.456", role: "admin", salary: 0, mobile: "9999999999" },
       { id: "Kaushik", name: "Kaushik", email: "kaushik@sunshinepagarbook.internal", pass: "Kaushik.123", role: "employee", salary: 15000, mobile: "9876543210" },
       { id: "Shashikant", name: "Shashikant", email: "shashikant@sunshinepagarbook.internal", pass: "Shashikant.123", role: "employee", salary: 18000, mobile: "9876543211" },
       { id: "Kailash", name: "Kailash", email: "kailash@sunshinepagarbook.internal", pass: "Kailash.123", role: "employee", salary: 14000, mobile: "9876543212" },

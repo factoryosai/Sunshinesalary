@@ -16,15 +16,17 @@ import {
 } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../firebase";
 import { Employee, MonthlyRecord, Withdrawal, AppNotification } from "../types";
-import { Bell, LogOut, DollarSign, Calendar, TrendingUp, AlertTriangle, ListFilter, CreditCard } from "lucide-react";
+import { Bell, LogOut, DollarSign, Calendar, TrendingUp, AlertTriangle, ListFilter, CreditCard, Download } from "lucide-react";
 import LedgerCard from "./LedgerCard";
 
 interface EmployeePanelProps {
   employeeId: string;
   onLogout: () => void;
+  showInstallBtn?: boolean;
+  onInstallApp?: () => void;
 }
 
-export default function EmployeePanel({ employeeId, onLogout }: EmployeePanelProps) {
+export default function EmployeePanel({ employeeId, onLogout, showInstallBtn, onInstallApp }: EmployeePanelProps) {
   // States
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [records, setRecords] = useState<MonthlyRecord[]>([]);
@@ -210,6 +212,18 @@ export default function EmployeePanel({ employeeId, onLogout }: EmployeePanelPro
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Install App PWA Trigger */}
+            {showInstallBtn && onInstallApp && (
+              <button
+                onClick={onInstallApp}
+                className="bg-[#A9772F] hover:bg-[#b8853b] border border-[#f5cb87]/40 px-3 py-1.5 rounded text-xs flex items-center gap-1.5 font-bold font-hindi-body transition-all shadow-sm transform active:scale-95 text-white"
+                title="ऐप इंस्टॉल करें (Install App)"
+              >
+                <Download className="w-4 h-4 text-white shrink-0" />
+                <span className="hidden sm:inline">ऐप इंस्टॉल करें</span>
+              </button>
+            )}
+
             {/* Notification Bell with Badge */}
             <div className="relative">
               <button 

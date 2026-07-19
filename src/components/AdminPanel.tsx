@@ -44,7 +44,8 @@ import {
   Sparkles,
   MessageSquare,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Download
 } from "lucide-react";
 import LedgerCard from "./LedgerCard";
 import GeminiCommandBar from "./GeminiCommandBar";
@@ -1096,9 +1097,11 @@ function EmployeeManagementCard({
 interface AdminPanelProps {
   adminUid: string;
   onLogout: () => void;
+  showInstallBtn?: boolean;
+  onInstallApp?: () => void;
 }
 
-export default function AdminPanel({ adminUid, onLogout }: AdminPanelProps) {
+export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInstallApp }: AdminPanelProps) {
   // State lists
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<MonthlyRecord[]>([]);
@@ -1678,6 +1681,18 @@ export default function AdminPanel({ adminUid, onLogout }: AdminPanelProps) {
           </div>
 
           <div className="flex items-center gap-3.5 flex-wrap">
+            {/* Install App PWA Trigger */}
+            {showInstallBtn && onInstallApp && (
+              <button
+                onClick={onInstallApp}
+                className="bg-[#A9772F] hover:bg-[#b8853b] border border-[#f5cb87]/40 px-3 py-1.5 rounded text-xs flex items-center gap-1.5 font-bold font-guj-body transition-all shadow-sm transform active:scale-95 text-white"
+                title="એપ ઇન્સ્ટોલ કરો (Install App)"
+              >
+                <Download className="w-4 h-4 text-white shrink-0" />
+                <span>એપ ઇન્સ્ટોલ કરો</span>
+              </button>
+            )}
+
             {/* Active Month Selector */}
             <div className="flex items-center gap-2 bg-[#9C3B3B] px-3 py-1 rounded border border-[#A9772F]">
               <Calendar className="w-4 h-4 text-amber-200" />

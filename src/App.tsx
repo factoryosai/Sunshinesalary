@@ -19,6 +19,58 @@ export default function App() {
   const [employeeId, setEmployeeId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
+  // PWA states
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      console.log("PWA app was installed successfully!");
+    };
+
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    // Check if running in standalone display mode
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    setIsStandalone(isStandaloneMode);
+
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleChange = (evt: MediaQueryListEvent) => {
+      setIsStandalone(evt.matches);
+    };
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      console.log("PWA prompt is not available.");
+      return;
+    }
+    // Show the installation dialog
+    deferredPrompt.prompt();
+    // Wait for the user's choice
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User installation choice outcome: ${outcome}`);
+    // Regardless of choice, the prompt can't be used again, discard it
+    setDeferredPrompt(null);
+  };
+
+  const showInstallBtn = !!deferredPrompt && !isStandalone;
+
   // Login form states
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
@@ -54,7 +106,7 @@ export default function App() {
             setEmployeeId(data.employeeId || "");
           } else {
             // Fallback for direct logins or admin fallback
-            if (currentUser.email === "admin@sunshinepagarbook.internal") {
+            if (currentUser.email === "sunshine@sunshinepagarbook.internal") {
               setRole("admin");
             } else {
               setRole("employee");
@@ -100,8 +152,8 @@ export default function App() {
       const lowerId = trimmedId.toLowerCase();
       const lowerPass = trimmedPass.toLowerCase();
 
-      if (lowerId === "admin" && (trimmedPass === "admin123" || trimmedPass === "Admin.456")) {
-        altPassword = trimmedPass === "admin123" ? "Admin.456" : "admin123";
+      if (lowerId === "sunshine" && (trimmedPass === "Sun.456" || trimmedPass === "sun.456")) {
+        altPassword = trimmedPass === "Sun.456" ? "sun.456" : "Sun.456";
       } else {
         // e.g. "kaushik123" -> fallback "Kaushik.123"
         const nameMatch = trimmedPass.match(/^([a-zA-Z]+)123$/);
@@ -163,11 +215,25 @@ export default function App() {
 
   // Router layout
   if (user && role === "admin") {
-    return <AdminPanel adminUid={user.uid} onLogout={handleLogout} />;
+    return (
+      <AdminPanel 
+        adminUid={user.uid} 
+        onLogout={handleLogout} 
+        showInstallBtn={showInstallBtn}
+        onInstallApp={handleInstallApp}
+      />
+    );
   }
 
   if (user && role === "employee") {
-    return <EmployeePanel employeeId={employeeId} onLogout={handleLogout} />;
+    return (
+      <EmployeePanel 
+        employeeId={employeeId} 
+        onLogout={handleLogout} 
+        showInstallBtn={showInstallBtn}
+        onInstallApp={handleInstallApp}
+      />
+    );
   }
 
   // Login View (Aged ledger paper cream theme)
@@ -209,7 +275,7 @@ export default function App() {
                 type="text"
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
-                placeholder="દા.ત. Admin અથવા Kaushik"
+                placeholder="દા.ત. Sunshine અથવા Kaushik"
                 required
                 className="w-full pl-9 pr-3 py-2 bg-white rounded border border-gray-300 text-sm focus:outline-none focus:ring-1 focus:ring-[#8B2E2E] font-mono"
               />
@@ -251,20 +317,6 @@ export default function App() {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Demo credentials info card */}
-        <div className="mt-6 border-t border-dashed border-gray-200 pt-4 pl-2.5">
-          <div className="bg-[#FAF9F5] rounded border border-[#A9772F] p-3 text-xs text-ledger-ink">
-            <h4 className="font-bold font-guj-body text-[#A9772F] flex items-center gap-1 mb-1.5">
-              <Info className="w-3.5 h-3.5" /> ડેમો લૉગિન વિગતો (Demo Credentials):
-            </h4>
-            <ul className="space-y-1 font-mono text-[10.5px] text-gray-600 leading-normal">
-              <li>• <strong>એડમિન (Admin):</strong> ID: <code className="bg-gray-100 px-1 rounded">Admin</code> / Pass: <code className="bg-gray-100 px-1 rounded">admin123</code></li>
-              <li>• <strong>કર્મચારી (Employee):</strong> ID: <code className="bg-gray-100 px-1 rounded">Kaushik</code> / Pass: <code className="bg-gray-100 px-1 rounded">kaushik123</code></li>
-              <li>• <strong>કર્મચારી (Employee):</strong> ID: <code className="bg-gray-100 px-1 rounded">Shashikant</code> / Pass: <code className="bg-gray-100 px-1 rounded">shashikant123</code></li>
-            </ul>
-          </div>
-        </div>
 
       </div>
     </div>
