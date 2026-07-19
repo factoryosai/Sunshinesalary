@@ -84,6 +84,11 @@ function EmployeeManagementCard({
   const [localSuccess, setLocalSuccess] = useState("");
   const [localError, setLocalError] = useState("");
 
+  // States for Editing/Deleting Withdrawals
+  const [editingWithdrawalId, setEditingWithdrawalId] = useState<string | null>(null);
+  const [editWithdrawalAmount, setEditWithdrawalAmount] = useState<string>("");
+  const [editWithdrawalNote, setEditWithdrawalNote] = useState<string>("");
+
   // Sub-listeners for this specific employee's histories (loaded on demand when dashboard is expanded)
   const isDashboardExpanded = isSelected;
   const [cardWithdrawals, setCardWithdrawals] = useState<Withdrawal[]>([]);
@@ -204,13 +209,20 @@ function EmployeeManagementCard({
   // Tab: Delete state
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
-  // Sync state values when monthlyRecord changes
+  // Sync state values when monthlyRecord changes (only once when selection changes)
+  const [loadedMonthKey, setLoadedMonthKey] = useState<string>("");
   useEffect(() => {
-    if (monthlyRecord) {
+    const currentKey = `${emp.id}_${selectedMonth}`;
+    if (monthlyRecord && loadedMonthKey !== currentKey) {
       setPagarDays(monthlyRecord.dutyDays ?? 0);
       setPagarOvertime(monthlyRecord.overtimeAmount ?? 0);
+      setLoadedMonthKey(currentKey);
+    } else if (!monthlyRecord && loadedMonthKey !== currentKey) {
+      setPagarDays(0);
+      setPagarOvertime(0);
+      setLoadedMonthKey(currentKey);
     }
-  }, [monthlyRecord, selectedMonth]);
+  }, [monthlyRecord, selectedMonth, emp.id, loadedMonthKey]);
 
   // Actions
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -305,6 +317,57 @@ function EmployeeManagementCard({
     } catch (err: any) {
       console.error(err);
       setLocalError("ઉપાડ ઉમેરવામાં નિષ્ફળતા મળી.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteWithdrawal = async (wId: string, monthKey: string) => {
+    if (!window.confirm("શું તમે આ ઉપાડ ખરેખર ડિલીટ કરવા માંગો છો?")) return;
+    try {
+      setIsSubmitting(true);
+      setLocalError("");
+      const docRef = doc(db, "employees", emp.id, "withdrawals", wId);
+      await deleteDoc(docRef);
+      await triggerRecalculate(emp.id, monthKey);
+      setLocalSuccess("ઉપાડ સફળતાપૂર્વક કાઢી નાખવામાં આવ્યો છે!");
+      setTimeout(() => setLocalSuccess(""), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setLocalError("ઉપાડ ડિલીટ કરવામાં ભૂલ આવી.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStartEditWithdrawal = (w: Withdrawal) => {
+    setEditingWithdrawalId(w.id);
+    setEditWithdrawalAmount(String(w.amount));
+    setEditWithdrawalNote(w.note || "");
+  };
+
+  const handleSaveEditWithdrawal = async (wId: string, monthKey: string) => {
+    const amt = Number(editWithdrawalAmount);
+    if (!amt || amt <= 0) {
+      alert("કૃપા કરીને યોગ્ય રકમ દાખલ કરો.");
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      setLocalError("");
+      const docRef = doc(db, "employees", emp.id, "withdrawals", wId);
+      await setDoc(docRef, {
+        amount: amt,
+        note: editWithdrawalNote,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      await triggerRecalculate(emp.id, monthKey);
+      setEditingWithdrawalId(null);
+      setLocalSuccess("ઉપાડ સફળતાપૂર્વક અપડેટ થયો છે!");
+      setTimeout(() => setLocalSuccess(""), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setLocalError("ઉપાડ અપડેટ કરવામાં ભૂલ આવી.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1042,16 +1105,73 @@ function EmployeeManagementCard({
                   <p className="text-[11px] text-gray-500 italic py-4 text-center font-guj-body">હજુ સુધી કોઈ ઉપાડ લીધેલ નથી.</p>
                 ) : (
                   cardWithdrawals.map((w) => (
-                    <div key={w.id} className="flex justify-between items-center bg-white p-2 rounded border border-red-50 hover:border-red-150 transition-colors">
-                      <div>
-                        <span className="font-mono text-gray-400 block text-[9px] leading-tight">
-                          {w.date?.seconds ? new Date(w.date.seconds * 1000).toLocaleDateString("gu-IN") : ""} ({w.monthlyRecordId})
-                        </span>
-                        <span className="font-bold text-gray-700">{w.note || "ઉપાડ"}</span>
-                      </div>
-                      <span className="font-mono font-bold text-[#8B2E2E] text-xs">
-                        -₹{w.amount}
-                      </span>
+                    <div key={w.id} className="bg-white p-2 rounded border border-red-50 hover:border-red-150 transition-colors">
+                      {editingWithdrawalId === w.id ? (
+                        <div className="space-y-2 w-full text-left">
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <input
+                              type="number"
+                              value={editWithdrawalAmount}
+                              onChange={(e) => setEditWithdrawalAmount(e.target.value)}
+                              className="w-full px-2 py-1 bg-gray-50 rounded border text-xs font-mono font-bold focus:outline-none"
+                              placeholder="Amount"
+                            />
+                            <input
+                              type="text"
+                              value={editWithdrawalNote}
+                              onChange={(e) => setEditWithdrawalNote(e.target.value)}
+                              className="w-full px-2 py-1 bg-gray-50 rounded border text-xs focus:outline-none"
+                              placeholder="Note"
+                            />
+                          </div>
+                          <div className="flex gap-1 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditWithdrawal(w.id, w.monthlyRecordId)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-[10px] font-bold"
+                            >
+                              સેવ
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingWithdrawalId(null)}
+                              className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px]"
+                            >
+                              રદ કરો
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-center w-full">
+                          <div>
+                            <span className="font-mono text-gray-400 block text-[9px] leading-tight">
+                              {w.date?.seconds ? new Date(w.date.seconds * 1000).toLocaleDateString("gu-IN") : ""} ({w.monthlyRecordId})
+                            </span>
+                            <span className="font-bold text-gray-700 block text-xs">{w.note || "ઉપાડ"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-[#8B2E2E] text-xs">
+                              -₹{w.amount}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditWithdrawal(w)}
+                              className="text-blue-600 hover:text-blue-800 p-0.5 transition-colors"
+                              title="સુધારો"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteWithdrawal(w.id, w.monthlyRecordId)}
+                              className="text-red-600 hover:text-red-800 p-0.5 transition-colors"
+                              title="ડિલીટ કરો"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -1111,6 +1231,7 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
   // Selected state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("2026_07");
+  const [loadedMainKey, setLoadedMainKey] = useState<string>("");
 
   // Forms states
   const [newEmpName, setNewEmpName] = useState("");
@@ -1328,16 +1449,19 @@ export default function AdminPanel({ adminUid, onLogout, showInstallBtn, onInsta
     return () => unsubscribe();
   }, [selectedEmployeeId]);
 
-  // Sync state values when monthly records change
+  // Sync state values when monthly records change (only once when selection changes)
   useEffect(() => {
-    if (activeRecord) {
+    const currentKey = `${selectedEmployeeId}_${selectedMonth}`;
+    if (activeRecord && loadedMainKey !== currentKey) {
       setDutyDays(activeRecord.dutyDays ?? 0);
-      setOvertimeAmount(activeRecord.overtimeAmount);
-    } else {
+      setOvertimeAmount(activeRecord.overtimeAmount ?? 0);
+      setLoadedMainKey(currentKey);
+    } else if (!activeRecord && loadedMainKey !== currentKey) {
       setDutyDays(0);
       setOvertimeAmount(0);
+      setLoadedMainKey(currentKey);
     }
-  }, [selectedMonth, selectedEmployeeId, records]);
+  }, [activeRecord, selectedMonth, selectedEmployeeId, loadedMainKey]);
 
   // Trigger recalculate on server
   const triggerRecalculate = async (empId: string, monthKey: string) => {

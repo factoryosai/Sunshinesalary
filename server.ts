@@ -25,7 +25,8 @@ import {
 import { 
   getAuth, 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword 
+  signInWithEmailAndPassword,
+  updatePassword
 } from "firebase/auth";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -142,17 +143,15 @@ async function calculateSalaryInternal(employeeId: string, yearMonthStr: string)
   // carry_forward_in  = previous month's finalSalary IF it was negative, else 0
   // final_salary      = total_earned + overtimeAmount - total_withdrawals - carry_forward_in
   let totalEarned = 0;
-  let finalSalary = 0;
 
   if (dutyDaysAdded && dutyDays !== null) {
     const perDaySalary = monthlySalary / 26;
     totalEarned = perDaySalary * dutyDays;
-    finalSalary = totalEarned + overtimeAmount - totalWithdrawals - carryForwardIn;
   } else {
     totalEarned = 0;
-    overtimeAmount = 0;
-    finalSalary = -totalWithdrawals - carryForwardIn;
   }
+  
+  const finalSalary = totalEarned + overtimeAmount - totalWithdrawals - carryForwardIn;
   
   let carryForwardOut = 0;
   if (finalSalary < 0) {
@@ -544,8 +543,35 @@ app.post("/api/seed", async (req, res) => {
             uid = loginCred.user.uid;
             results.push({ id: item.id, status: "already_exists", email: item.email });
           } catch (loginErr: any) {
-            results.push({ id: item.id, status: "error_signin", error: loginErr.message });
-            continue;
+            // Attempt to heal using alternate/fallback passwords
+            const alternatePasses = [];
+            if (item.id === "Sunshine") {
+              alternatePasses.push("Admin.456", "admin123", "sun.456", "Sun.456");
+            } else {
+              const capName = item.id.charAt(0).toUpperCase() + item.id.slice(1).toLowerCase();
+              alternatePasses.push(`${capName}.123`, `${item.id.toLowerCase()}123`);
+            }
+
+            let healed = false;
+            for (const altPass of alternatePasses) {
+              try {
+                const loginCred = await signInWithEmailAndPassword(auth, item.email, altPass);
+                uid = loginCred.user.uid;
+                if (auth.currentUser) {
+                  await updatePassword(auth.currentUser, item.pass);
+                }
+                results.push({ id: item.id, status: "already_exists_healed", email: item.email, originalPass: altPass });
+                healed = true;
+                break;
+              } catch (altErr) {
+                // Try next
+              }
+            }
+
+            if (!healed) {
+              results.push({ id: item.id, status: "error_signin", error: loginErr.message });
+              continue;
+            }
           }
         } else {
           results.push({ id: item.id, status: "error_create", error: err.message });

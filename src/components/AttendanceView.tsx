@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { Employee } from "../types";
 import { Calendar, UserCheck, AlertCircle, Save, CheckCircle2 } from "lucide-react";
@@ -83,26 +83,31 @@ export default function AttendanceView({
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      // 2. Loop through each employee and calculate duty days for this selectedMonth
+      // 2. Fetch all attendance documents for this selectedMonth in a single query
+      const startStr = `${yearNum}-${String(monthNum).padStart(2, "0")}-01`;
+      const endStr = `${yearNum}-${String(monthNum).padStart(2, "0")}-${String(totalDays).padStart(2, "0")}`;
+      const q = query(collection(db, "attendance"), where("dateStr", ">=", startStr), where("dateStr", "<=", endStr));
+      const querySnap = await getDocs(q);
+
+      const attendanceByDay: { [day: number]: { [employeeId: string]: 'P' | 'A' | 'H' } } = {};
+      querySnap.forEach((docSnap) => {
+        const data = docSnap.data();
+        const dStr = data.dateStr; // e.g. "2026-07-19"
+        const dNum = parseInt(dStr.split("-")[2], 10);
+        attendanceByDay[dNum] = data.presents || {};
+      });
+
+      // 3. Loop through each employee and calculate duty days for this selectedMonth in memory
       for (const emp of employees) {
         let dutyCount = 0;
 
-        // Fetch all attendance documents for this year/month to aggregate
         for (let d = 1; d <= totalDays; d++) {
-          const checkDocId = `${yearNum}_${String(monthNum).padStart(2, "0")}_${String(d).padStart(2, "0")}`;
           let status: 'P' | 'A' | 'H' = 'P'; // default present
 
           if (d === selectedDay) {
             status = attendanceData[emp.id] || 'P';
           } else {
-            const checkRef = doc(db, "attendance", checkDocId);
-            const checkSnap = await getDoc(checkRef);
-            if (checkSnap.exists()) {
-              status = checkSnap.data().presents?.[emp.id] || 'P';
-            } else {
-              // If no attendance document exists, we count it as 'P' (present) by default
-              status = 'P';
-            }
+            status = attendanceByDay[d]?.[emp.id] || 'P';
           }
 
           if (status === 'P') {

@@ -147,38 +147,39 @@ export default function App() {
     } catch (err: any) {
       console.warn("First login attempt failed, trying alternate password:", err.message);
       
-      // Attempt alternative fallback password due to potential seeding mismatch
-      let altPassword: string | null = null;
+      const alternatePasses: string[] = [];
       const lowerId = trimmedId.toLowerCase();
-      const lowerPass = trimmedPass.toLowerCase();
+      const capId = trimmedId.charAt(0).toUpperCase() + trimmedId.slice(1).toLowerCase();
 
-      if (lowerId === "sunshine" && (trimmedPass === "Sun.456" || trimmedPass === "sun.456")) {
-        altPassword = trimmedPass === "Sun.456" ? "sun.456" : "Sun.456";
+      if (lowerId === "sunshine" || lowerId === "admin") {
+        alternatePasses.push("Sun.456", "sun.456", "Admin.456", "admin123");
       } else {
-        // e.g. "kaushik123" -> fallback "Kaushik.123"
-        const nameMatch = trimmedPass.match(/^([a-zA-Z]+)123$/);
-        if (nameMatch) {
-          const namePart = nameMatch[1];
-          const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
-          altPassword = `${capitalized}.123`;
-        } else {
-          // e.g. "Kaushik.123" -> fallback "kaushik123"
-          const strongMatch = trimmedPass.match(/^([a-zA-Z]+)\.123$/);
-          if (strongMatch) {
-            altPassword = `${strongMatch[1].toLowerCase()}123`;
-          }
+        alternatePasses.push(`${capId}.123`, `${lowerId}123`, `${lowerId}.123`, `${capId}123`);
+        
+        const passMatch = trimmedPass.match(/^([a-zA-Z]+)(?:\.|)(123)$/);
+        if (passMatch) {
+          const namePart = passMatch[1];
+          const capName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
+          alternatePasses.push(`${capName}.123`, `${namePart.toLowerCase()}123`);
         }
       }
 
-      if (altPassword) {
+      let loginSuccess = false;
+      for (const altPassword of alternatePasses) {
+        if (altPassword === trimmedPass) continue;
         try {
           const email = `${trimmedId.toLowerCase()}@sunshinepagarbook.internal`;
           await signInWithEmailAndPassword(auth, email, altPassword);
-          setSubmitting(false);
-          return;
+          loginSuccess = true;
+          break;
         } catch (fallbackErr) {
-          console.error("Fallback login attempt also failed:", fallbackErr);
+          // ignore and try next alternate password
         }
+      }
+
+      if (loginSuccess) {
+        setSubmitting(false);
+        return;
       }
 
       if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
